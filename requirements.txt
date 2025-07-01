@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+pymongo>=4.5.0
+apscheduler
+python-multipart
+jinja2

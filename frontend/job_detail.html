@@ -1,0 +1,48 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Job Detail</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body onload="loadJob()">
+
+    <h1>Job Detail</h1>
+    <div id="detail"></div>
+
+    <h2>Related Jobs</h2>
+    <div id="related"></div>
+
+    <script>
+        async function loadJob() {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get("id");
+
+            const res = await fetch(`/jobs/${id}`);
+            const data = await res.json();
+
+            const detail = document.getElementById("detail");
+            detail.innerHTML = `
+                <h3>${data.job.position}</h3>
+                <p><strong>Company:</strong> ${data.job.company}</p>
+                <p><strong>Location:</strong> ${data.job.city}, ${data.job.town}</p>
+                <p><strong>Description:</strong> ${data.job.description}</p>
+                <p><strong>Updated:</strong> ${new Date(data.job.updated_at).toLocaleDateString()}</p>
+                <p><strong>Applications:</strong> ${data.job.application_count}</p>
+            `;
+
+            const related = document.getElementById("related");
+            data.related.forEach(j => {
+                const div = document.createElement("div");
+                div.innerHTML = `
+                    <strong>${j.position}</strong> – ${j.city}<br>
+                    <button onclick="window.location='job_detail.html?id=${j.id}'">Detay</button>
+                    <hr>
+                `;
+                related.appendChild(div);
+            });
+        }
+    </script>
+
+</body>
+</html>

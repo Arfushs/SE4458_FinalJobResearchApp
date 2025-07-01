@@ -1,0 +1,244 @@
+﻿<!-- Aşağıya yapıştırılabilir HTML -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <title>Job Search</title>
+</head>
+<body onload="initHome()">
+
+    <h1>Job Search</h1>
+
+    <div style="display: flex; gap: 20px;">
+        <div style="flex: 1; max-width: 250px;">
+            <h3>Filtrele</h3>
+            <label>Şehir:</label><br>
+            <select id="filterCity" onchange="applyFilters()">
+                <option value="">Tümü</option>
+                <option value="Izmir">Izmir</option>
+                <option value="Istanbul">Istanbul</option>
+                <option value="Ankara">Ankara</option>
+                <option value="Bursa">Bursa</option>
+                <option value="Antalya">Antalya</option>
+            </select><br><br>
+
+            <label>İlçe:</label><br>
+            <select id="filterTown" onchange="applyFilters()">
+                <option value="">Tümü</option>
+                <option value="Konak">Konak</option>
+                <option value="Sisli">Şişli</option>
+                <option value="Cankaya">Çankaya</option>
+                <option value="Nilüfer">Nilüfer</option>
+                <option value="Besiktas">Beşiktaş</option>
+            </select><br><br>
+
+            <label>Çalışma Tipi:</label><br>
+            <select id="filterType" onchange="applyFilters()">
+                <option value="">Tümü</option>
+                <option value="Remote">Uzaktan</option>
+                <option value="Onsite">Ofisten</option>
+                <option value="Hybrid">Hibrit</option>
+            </select>
+        </div>
+
+        <div style="flex: 3;">
+            <h3>Seçilen Filtreler:</h3>
+            <div id="activeFilters"></div>
+
+            <input type="text" id="city" placeholder="City" oninput="autocomplete('city', cities)">
+            <input type="text" id="position" placeholder="Position" oninput="autocomplete('position', positions)">
+            <button onclick="searchJobs()">Search</button>
+
+            <h2>Son Aramalarım</h2>
+            <ul id="searchHistory"></ul>
+
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <div class="chat">
+        <h3>AI Job Assistant</h3>
+        <input type="text" id="chatInput" placeholder="e.g. Web Developer in Istanbul">
+        <button onclick="sendMessage()">Send</button>
+        <div id="chatResponse" style="margin-top:10px;"></div>
+    </div>
+
+    <script>
+        const cities = ["Izmir", "Istanbul", "Ankara", "Bursa", "Antalya"];
+        const positions = [
+            "React Developer", "Frontend Developer", "Backend Developer",
+            "Full Stack Developer", "Mobile Developer", "Web Developer",
+            "DevOps Engineer", "QA Tester", "Data Analyst",
+            "Project Manager", "UI/UX Designer"
+        ];
+
+        function autocomplete(id, list) {
+            const input = document.getElementById(id);
+            const value = input.value.toLowerCase();
+            let match = list.find(item => item.toLowerCase().startsWith(value));
+            if (match) input.value = match;
+        }
+
+        async function searchJobs(cityFilter = "", town = "", workType = "") {
+            const city = cityFilter || document.getElementById("city").value;
+            const position = document.getElementById("position").value;
+
+            const res = await fetch("/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ city, position, town, work_type: workType })
+            });
+
+            const jobs = await res.json();
+            const container = document.getElementById("results");
+            container.innerHTML = "<h2>Sonuçlar:</h2>";
+
+            jobs.forEach(job => {
+                const div = document.createElement("div");
+                div.className = "job";
+                div.innerHTML = `
+                    <strong>${job.position}</strong> at ${job.company}<br>
+                    ${job.city} / ${job.town || "-"} – ${job.description}<br>
+                    Başvuru: ${job.application_count} – Güncellenme: ${new Date(job.updated_at).toLocaleDateString()}<br>
+                    <button onclick="applyJob('${job.id}')">Apply</button>
+                    <button onclick="showDetails('${job.id}')">Detay</button>
+                `;
+                container.appendChild(div);
+            });
+
+            loadSearchHistory();
+        }
+
+        async function applyJob(jobId) {
+            const res = await fetch("/apply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: "guest", job_id: jobId })
+            });
+
+            const data = await res.json();
+            alert(data.message || "Application submitted!");
+        }
+
+        async function sendMessage() {
+            const msg = document.getElementById("chatInput").value;
+            const res = await fetch("/agent", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: msg })
+            });
+
+            const data = await res.json();
+            const container = document.getElementById("chatResponse");
+
+            container.innerHTML = Array.isArray(data.response)
+                ? data.response.map(j => `<div>${j.position} – ${j.city} – ${j.company}</div>`).join("")
+                : `<div>${data.response}</div>`;
+        }
+
+        async function loadSearchHistory() {
+            const res = await fetch("/searches/guest");
+            const data = await res.json();
+            const history = document.getElementById("searchHistory");
+            history.innerHTML = "";
+            data.forEach(q => {
+                const li = document.createElement("li");
+                li.textContent = q;
+                history.appendChild(li);
+            });
+        }
+
+        function applyFilters() {
+            const city = document.getElementById("filterCity").value;
+            const town = document.getElementById("filterTown").value;
+            const type = document.getElementById("filterType").value;
+
+            const active = document.getElementById("activeFilters");
+            active.innerHTML = "";
+
+            if (city) active.innerHTML += `<span class="filter-tag" onclick="clearFilter('filterCity')">${city} ❌</span>`;
+            if (town) active.innerHTML += `<span class="filter-tag" onclick="clearFilter('filterTown')">${town} ❌</span>`;
+            if (type) active.innerHTML += `<span class="filter-tag" onclick="clearFilter('filterType')">${type} ❌</span>`;
+
+            searchJobs(city, town, type);
+        }
+
+        function clearFilter(id) {
+            document.getElementById(id).value = "";
+            applyFilters();
+        }
+
+        async function initHome() {
+            const city = "Izmir";
+
+            const res = await fetch("/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ city })
+            });
+
+            const jobs = await res.json();
+            const container = document.getElementById("results");
+            container.innerHTML = "<h2>Şehrinizdeki İşler (" + city + "):</h2>";
+
+            jobs.slice(0, 5).forEach(job => {
+                const div = document.createElement("div");
+                div.className = "job";
+                div.innerHTML = `
+                    <strong>${job.position}</strong> at ${job.company}<br>
+                    ${job.city} / ${job.town || "-"} – ${job.description}<br>
+                    Başvuru: ${job.application_count} – Güncellenme: ${new Date(job.updated_at).toLocaleDateString()}<br>
+                    <button onclick="applyJob('${job.id}')">Apply</button>
+                    <button onclick="showDetails('${job.id}')">Detay</button>
+                `;
+                container.appendChild(div);
+            });
+
+            loadSearchHistory();
+        }
+
+        async function showDetails(jobId) {
+            const res = await fetch("/jobs");
+            const jobs = await res.json();
+            const job = jobs.find(j => j.id.toString() === jobId.toString());
+            if (!job) return;
+
+            const related = jobs.filter(j =>
+                j.city === job.city &&
+                j.position !== job.position
+            ).slice(0, 3);
+
+            const html = `
+                <h2>${job.position}</h2>
+                <p><strong>Şirket:</strong> ${job.company}</p>
+                <p><strong>Şehir / İlçe:</strong> ${job.city} / ${job.town}</p>
+                <p><strong>Çalışma Tipi:</strong> ${job.work_type}</p>
+                <p><strong>Başvuru Sayısı:</strong> ${job.application_count}</p>
+                <p><strong>Güncelleme Tarihi:</strong> ${new Date(job.updated_at).toLocaleDateString()}</p>
+                <p><strong>Açıklama:</strong> ${job.description}</p>
+                <h3>İlgini çekebilir:</h3>
+                <ul>
+                    ${related.map(r => `<li>${r.position} – ${r.company} (${r.city})</li>`).join("")}
+                </ul>
+            `;
+
+            document.getElementById("modalContent").innerHTML = html;
+            document.getElementById("jobModal").style.display = "block";
+        }
+
+        function closeModal() {
+            document.getElementById("jobModal").style.display = "none";
+        }
+    </script>
+
+    <!-- Modal -->
+    <div id="jobModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <div id="modalContent">Yükleniyor...</div>
+      </div>
+    </div>
+
+</body>
+</html>
