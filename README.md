@@ -1,4 +1,4 @@
-Here is your complete `README.md` file in English, written to match the structure and requirements of your SE4458 project:
+
 
 ---
 
@@ -119,13 +119,8 @@ docker run -p 8000:8000 job-app
 
 ## 👤 Developer
 
-**Your Name Here**
-SE4458 – Software Architecture and Design
-Eskisehir Technical University
+**Arfus**
 
 ```
 
----
-
-Would you like me to export it as a file or include it directly inside your `app.zip`?
 ```
